@@ -12,7 +12,7 @@ import warnings
 
 from scipy.lib.six import string_types
 
-__all__ = ['periodogram', 'welch', 'lombscargle']
+__all__ = ['periodogram', 'welch', 'wigner', 'lombscargle']
 
 
 def periodogram(x, fs=1.0, window=None, nfft=None, detrend='constant',
@@ -380,3 +380,43 @@ def welch(x, fs=1.0, window='hanning', nperseg=256, noverlap=None, nfft=None,
         Pxx = np.rollaxis(Pxx, -1, axis)
 
     return f, Pxx
+
+def wigner(x, delta_x=1.0):
+    """
+    Calculate the Wigner distribution function, also called the Wigner quasiprobability distribution
+    and the Wigner-Ville distribution.
+
+    Parameters
+    ----------
+    x : array_like
+        Evenly spaced time series of measurement values. These values may in general be complex.
+    delta_x : float,optional
+        Sample spacing of the `x` time series. Defaults to 1.0.
+
+    Returns
+    ----------
+    wigner : ndarray
+        Wigner distribution function of the input array.
+
+    Examples
+    --------
+    >>> from scipy import signal
+    >>> import matplotlib.pyplot as plt
+    """
+    npts=x.size
+    wigner=sp.zeros((npts,npts))
+    for position in np.arange(0,npts):
+        width=min(position, npts-position)
+        up=x[position:position+width]
+        #position-width or None evaluates to None when
+        #position-width is equal to zero.
+        down=x[position-width+1:position+1]
+        down=down[::-1]
+        acorr=down*np.conj(up)
+        ftrans=np.fft.irfft(acorr,n=npts)
+        ftrans=ftrans*ftrans.size/pi
+        #Shifting the fft itself back into place.
+        ftrans=fftpack.fftshift(ftrans)
+        wigner[position]=ftrans
+    wigner=wigner*delta_x
+    return wigner.transpose()
